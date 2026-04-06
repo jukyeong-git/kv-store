@@ -122,7 +122,10 @@ public class KvService {
     // Serialize the value object to a JSON string for storage
     private String serializeValue(Object value) {
         try {
-            return objectMapper.writeValueAsString(value);
+            if (value instanceof String) {
+                return (String) value;  // Store plain string without JSON serialization
+            }
+            return objectMapper.writeValueAsString(value);  // Serialize JSON object to string
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to serialize value", e);
         }
