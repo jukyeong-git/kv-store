@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.13'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
 }
 
 group = 'io.github.jukyeong'
@@ -24,6 +25,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.4'
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.h2database:h2'
     runtimeOnly 'org.postgresql:postgresql'
@@ -34,6 +36,43 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
+// ── Test configuration ─────────────────────────
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy jacocoTestReport  // Generate coverage report after tests
+}
+
+// ── JaCoCo configuration ───────────────────────
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true   // Required for CI/CD PR coverage comments
+        html.required = true  // Required for local coverage review
+    }
+    // Exclude classes that don't need coverage measurement
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    '**/dto/**',
+                    '**/entity/**',
+                    '**/config/**',
+                    '**/exception/KeyNotFoundException*',
+                    '**/KvStoreApplication*'
+            ])
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.70  // Minimum 70% coverage required
+            }
+        }
+    }
 }
