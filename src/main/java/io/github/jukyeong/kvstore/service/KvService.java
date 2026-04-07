@@ -33,6 +33,8 @@ public class KvService {
 
     // Lock expiration time in seconds
     private static final long LOCK_TIMEOUT = 10L;
+    private static final int MAX_RETRIES = 50;
+    private static final long RETRY_INTERVAL = 100L;
 
     // Save a key-value pair, attempting Redis lock first
     // Falls back to DB-level pessimistic lock if Redis is unavailable
@@ -52,19 +54,34 @@ public class KvService {
     // Ensures only one thread increments the version at a time
     private KvResponse saveWithRedisLock(String key, String value) {
         String lockKey = LOCK_PREFIX + key;
-        Boolean locked = redisTemplate.opsForValue()
-                .setIfAbsent(lockKey, "1", LOCK_TIMEOUT, TimeUnit.SECONDS);
 
-        if (!Boolean.TRUE.equals(locked)) {
-            throw new RuntimeException("Failed to acquire lock for key: " + key);
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            Boolean locked = redisTemplate.opsForValue()
+                    .setIfAbsent(lockKey, "1", LOCK_TIMEOUT, TimeUnit.SECONDS);
+
+            if (Boolean.TRUE.equals(locked)) {
+                try {
+                    return saveInternal(key, value, false);
+                } finally {
+                    redisTemplate.delete(lockKey);
+                }
+            }
+
+            // Log retry attempt
+            log.debug("Lock acquisition failed for key: {}, attempt: {}/{}",
+                    key, attempt, MAX_RETRIES);
+
+            try {
+                Thread.sleep(RETRY_INTERVAL);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Thread interrupted while waiting for lock");
+            }
         }
 
-        try {
-            return saveInternal(key, value, false);
-        } finally {
-            // Always release the lock after the operation
-            redisTemplate.delete(lockKey);
-        }
+        throw new RuntimeException(
+                "Failed to acquire lock after " + MAX_RETRIES + " attempts for key: " + key
+        );
     }
 
     // Fallback: use DB-level pessimistic lock when Redis is down

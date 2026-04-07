@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -15,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("local")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class GlobalExceptionHandlerTest {
 
     @Autowired
@@ -25,30 +27,42 @@ class GlobalExceptionHandlerTest {
     void request_noContentType_returns415() throws Exception {
         mockMvc.perform(post("/object")
                         .content("{\"key\": \"k1\", \"value\": \"v1\"}"))
-                .andExpect(status().isUnsupportedMediaType());
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.error").exists());
     }
 
     @Test
     @DisplayName("Unknown endpoint should return 404")
     void request_unknownEndpoint_returns404() throws Exception {
         mockMvc.perform(get("/unknown"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").exists());
     }
 
     @Test
-    @DisplayName("Error response should contain error field")
-    void request_error_responseContainsErrorField() throws Exception {
+    @DisplayName("Unknown key should return 404 with error field")
+    void request_unknownKey_responseContainsErrorField() throws Exception {
         mockMvc.perform(get("/object/nonexistentkey"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").exists());
     }
 
     @Test
-    @DisplayName("Validation error response should contain error field")
+    @DisplayName("Validation error should return 400 with error field")
     void request_validationError_responseContainsErrorField() throws Exception {
         mockMvc.perform(post("/object")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
+    @DisplayName("Invalid JSON should return 400 with error field")
+    void request_invalidJson_returns400() throws Exception {
+        mockMvc.perform(post("/object")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("invalid-json"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists());
     }
