@@ -9,11 +9,16 @@ import io.github.jukyeong.kvstore.exception.KeyNotFoundException;
 import io.github.jukyeong.kvstore.repository.KvRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.RedisSystemException;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import javax.naming.ServiceUnavailableException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -44,9 +49,12 @@ public class KvService {
 
         try {
             return saveWithRedisLock(key, value);
-        } catch (RedisConnectionFailureException e) {
-            log.warn("Redis unavailable, falling back to DB lock for key: {}", key);
-            return saveWithDbLock(key, value);
+        } catch (RedisConnectionFailureException | QueryTimeoutException | RedisSystemException e) {
+            // Fail-Fast strategy to protect the database
+            log.error("CRITICAL: Redis is unavailable. Halting save operation to prevent Database overload. Key: {}", key);
+
+            // Throw Spring's built-in ResponseStatusException with 503 status
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "The server is temporarily unavailable. Please try again later.");
         }
     }
 

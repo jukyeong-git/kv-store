@@ -69,4 +69,11 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", e.getMessage()));
     }
+
+    //Handle Redis / System unavailability (Fail-Fast strategy)
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<?> handleServiceUnavailableException(ServiceUnavailableException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("error", e.getMessage()));
+    }
 }
