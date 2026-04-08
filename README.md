@@ -219,7 +219,7 @@ CREATE TABLE kv_store (
 
 - **Kafka integration**: Publish version change events to downstream services
 - **CQRS pattern**: Separate read/write services for higher throughput
-- **NAS deployment**: Self-hosted on Synology DS720+ with Cloudflare Tunnel for zero cold start
+- **Cloud migration**: Planning to migrate to a better cloud environment
 - **Metrics**: Expose Prometheus metrics via Spring Actuator
 
 ---
