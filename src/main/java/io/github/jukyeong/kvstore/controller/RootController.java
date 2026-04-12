@@ -9,11 +9,11 @@ import java.io.IOException;
 
 @Hidden
 @RestController
-public class HealthController {
+public class RootController {
 
     @GetMapping("/")
-    public void redirectToHealth(
-            HttpServletResponse response) throws IOException {
-        response.sendRedirect("/actuator/health");
+    public void redirect(HttpServletResponse response)
+            throws IOException {
+        response.sendRedirect("https://jukyeong-git.github.io");
     }
 }
